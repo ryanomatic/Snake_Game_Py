@@ -1,0 +1,209 @@
+import pygame
+import time
+import random
+ 
+pygame.init()
+ 
+white = (255, 255, 255)
+black = (0, 0, 0)
+red = (255, 0, 0)
+blue = (0, 0, 255)
+
+global snake_block,snake_speed,dis_width, dis_height
+snake_block = 10
+snake_speed = 10
+dis_width = 800
+dis_height = 600
+ 
+dis = pygame.display.set_mode((dis_width, dis_height))
+pygame.display.set_caption('Snake_Game_By_Ry ')
+ 
+clock = pygame.time.Clock()
+ 
+#snake_block = 10 #amt to move snake
+#snake_speed = 10 # frame rate
+ 
+font_style = pygame.font.SysFont(None, 30)
+ 
+ 
+def message(msg, color):
+    mesg = font_style.render(msg, True, color)
+    dis.blit(mesg, [dis_width/3, dis_height/3])
+ 
+def createFood(dis_width,snake_block):
+    foodx = round(random.randrange(0, dis_width - (2 * snake_block)) / 10.0) * 10.0
+    foody = round(random.randrange(0, dis_width - (2 * snake_block)) / 10.0) * 10.0
+    print(foodx,foody)
+    return [foodx,foody] #return as list value
+
+class snake:
+    def __init__(self,dis_width=dis_width,dis_height=dis_height):
+        self.snake_block = 10 #amt to move snake/block size
+        self.snake_speed = 10 # framerate
+        self.body = [[dis_width / 2, dis_height / 2]] #initialize body
+        self.skip = False
+        print("Snake initialized.")
+        
+    def move(self,x_change,y_change):
+        # move snake, given coordinate change
+
+        # calculate new position
+        new_x = self.body[0][0] + x_change
+        new_y = self.body[0][1] + y_change 
+        
+        # store new position
+        self.body.insert(0,[new_x,new_y])
+        
+        # remove old position unless time to grow
+        if not(self.skip):
+            self.body.pop(-1)
+        else:
+            self.skip = False
+        
+        #check if we ate one of our own segments
+        return self.eatSelf()
+         
+    def position(self):
+        return self.body[0][0], self.body[0][1] #x,y
+
+    def positionList(self): # returns position as list
+        return [self.body[0][0], self.body[0][1]] #x,y
+
+    def draw(self):#,pygame):
+        for segment in self.body:
+            pygame.draw.rect(dis, black, [segment[0], segment[1], self.snake_block, self.snake_block])
+ 
+    def grow(self): #grow by 1 element
+        self.skip = True
+        
+    def eatSelf(self): #checks if snake ate itself and if so, cut off the tail
+        if len(self.body) > 1:        
+            if self.positionList() in self.body[1:]: #ate itself
+                # find that position and cut it off
+                cutAt = self.body[1:].index(self.positionList()) + 1
+                print("Ate self and cut at:",self.body[1:].index(self.positionList()) + 1) #which position
+                return_val = self.body[cutAt+1:]
+                self.body = self.body[:cutAt]
+                return return_val #use someday for creating new blockers
+        return False
+
+class wall:
+    #cuttings from tail that become blocking objects
+    def __init__(self):
+        self.positions = []
+    
+    def add(self,positionList):
+        self.positions += positionList
+    
+    def draw(self):
+        for segment in self.positions:
+            pygame.draw.rect(dis, red, [segment[0], segment[1], snake_block, snake_block])
+    
+    def checkHit(self,coordinates):
+        if coordinates in self.positions:
+            print("Hit wall")        
+        return coordinates in self.positions
+            
+        
+
+def gameLoop():  # creating a function
+    game_over = False
+    game_close = False
+    
+    MyWall = wall()
+    MySnake = snake(dis_width,dis_height)
+
+    #set initial movement direction
+    x1_change = 0
+    y1_change = 0
+
+    # how many food to show on screen at once
+    food_count = 6
+    food_list = []
+
+    for food in range(food_count):
+        food_list.append(createFood(dis_width,snake_block))
+ 
+    while not game_over:
+ 
+        while game_close == True:
+            dis.fill(white)
+            message("Game over - Q to QUIT, C to CONTINUE", blue)
+            pygame.display.update()
+ 
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_q:
+                        game_over = True
+                        game_close = False
+                    if event.key == pygame.K_c:
+                        gameLoop()
+ 
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                game_over = True
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    x1_change = -snake_block
+                    y1_change = 0
+                elif event.key == pygame.K_RIGHT:
+                    x1_change = snake_block
+                    y1_change = 0
+                elif event.key == pygame.K_UP:
+                    y1_change = -snake_block
+                    x1_change = 0
+                elif event.key == pygame.K_DOWN:
+                    y1_change = snake_block
+                    x1_change = 0
+                elif event.key == pygame.K_SPACE:
+                    MySnake.grow()
+     
+        # Check hit boxes and such
+        x1,y1 = MySnake.position()
+        
+        # Check window border
+        if x1 >= dis_width or x1 < 0 or y1 >= dis_height or y1 < 0:
+            game_close = True
+
+        # Check walls
+        if MyWall.checkHit([x1,y1]):
+            game_close = True
+
+        # Move snake, record any cut-off tails
+        tail = MySnake.move(x1_change,y1_change)
+
+        if tail != False:
+            MyWall.add(tail)
+
+        # Clear screen
+        dis.fill(white)
+        
+        # DRAW FOOD
+        for food_item in food_list:
+            pygame.draw.rect(dis, blue, [food_item[0], food_item[1], snake_block, snake_block])
+    
+        # DRAW SNAKE
+        MySnake.draw()
+        MyWall.draw()
+        
+        pygame.display.update()
+ 
+ 
+        for count, item in enumerate(food_list):
+            if x1 == item[0] and y1 == item[1]:
+                print("Ate food.")
+                food_list.pop(count)
+                MySnake.grow()
+                
+        if len(food_list) < food_count:
+            food_list.append(createFood(dis_width,snake_block))
+                
+                
+                
+        clock.tick(snake_speed)
+ 
+    pygame.quit()
+    quit()
+ 
+ 
+gameLoop()
